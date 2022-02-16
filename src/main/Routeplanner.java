@@ -3,47 +3,80 @@ package main;
 import com.byteowls.jopencage.model.JOpenCageLatLng;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.control.*;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+
+import java.util.Arrays;
 
 public class Routeplanner {
 
     public TextField inputTextField;
-    public Text outputText;
     public Button button;
-    public ListView<Address> adreslijst;
+    public Button stopButton;
     public Slider progresSlider;
+
+    public ListView<Address> adreslijst;
+
+    public TextField addressQueryTextField;
+    public AnchorPane changeDataAnchorPane;
+    public TextField addressCoordTextField;
     public TextArea infoField;
+
+    public ComboBox<String> paramComboBox;
+    public ComboBox<String> valueComboBox;
+
 
     Api api;
     FileProcessor fp;
+    Address shownAddress;
+
+    Timeline timeline;
 
     public void initialize(){
         api = new Api();
         fp = new FileProcessor();
+
+        paramComboBox.setId("dropdown");
+        valueComboBox.setId("dropdown");
+
+        changeDataAnchorPane.setDisable(true);
 
         // Set the CellFactory for the ListView
         adreslijst.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(Address item, boolean empty) {
                 super.updateItem(item, empty);
+                setStyle(null);
                 if (empty || item == null) {
                     setGraphic(null);
-                    setStyle(null);
                     setText(null);
+                    setId("empty");
                 } else {
                     switch (item.getResponseStatus()) {
                         case OK:
-                            setStyle(item.getConfidence() < 10 ? "-fx-background-color: orange" : "");
-                            setText("searched '" + item.getAdresQuery() + "', found '" + item.getFormattedAddress() + "' with confidence " + item.getConfidence());
+                            if(item.getConfidence() < 10){
+                                setStyle("-fx-background-color: rgb(255, "+ 25 * (item.getConfidence() - 1)+ ", 0)");
+                                setId("WARNING");
+                            } else
+                                setId("OK");
+                            setText("'" + item.getFormattedAddress() + "', confidence " + item.getConfidence());
                             break;
                         case NULL:
+                            setId("NULL");
                             setText("Fetching coords for '" + item.getAdresQuery() + "'");
                             break;
                         case ERROR:
-                            setStyle("-fx-background-color: red; -fx-text-fill: white");
+                            setId("ERROR");
                             setText("ERROR searching address '" + item.getAdresQuery() + "'");
+                            break;
+                        case SET:
+                            setId("SET");
+                            setText("SET coords for '" + item.getAdresQuery() + "'");
                             break;
                     }
                 }
@@ -53,31 +86,47 @@ public class Routeplanner {
             public void updateSelected(boolean selected) {
                 super.updateSelected(selected);
                 if(selected) {
-                    String o = "INFO:\n" + super.getItem().order.dumpInfo();
+                    boolean sameValue = super.getItem() == shownAddress;
+                    shownAddress = super.getItem();
+                    changeDataAnchorPane.setDisable(shownAddress.isFetchingData());
+                    String o = "INFO:\n" + shownAddress.order.dumpInfo();
                     switch (super.getItem().getResponseStatus()) {
                         case ERROR:
-                            o += "\n\nERROR:\n" + super.getItem().getErrMessage();
+                            o += "\n\nERROR:\n" + shownAddress.getErrMessage();
                             break;
+                        case SET:
                         case OK:
-                            JOpenCageLatLng coords = super.getItem().getCoords();
+                            JOpenCageLatLng coords = shownAddress.getCoords();
                             o += "\n\nCoords:\nLat: " + coords.getLat() + "\nLng: " + coords.getLng();
                             break;
                         case NULL:
                             o += "\n\nStill fetching coords...";
+                            break;
+                    }
+                    if (!sameValue){
+                        addressQueryTextField.setText(shownAddress.getAdresQuery());
+                        addressCoordTextField.setText(shownAddress.getCoords().toString());
                     }
                     infoField.setText(o);
                 }
             }
         });
-
-
     }
 
 
     public void onClick(){
-        if (inputTextField.getText().length() == 0)
+        if (inputTextField.getText().isEmpty())
             return;
-        fp.processFile(inputTextField.getText(), this);
+        fp.processFile(inputTextField.getText());
+        paramComboBox.getItems().clear();
+        paramComboBox.getItems().addAll(fp.getOrderParams());
+        paramComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if(newValue != null && !newValue.equals(oldValue)){
+                valueComboBox.getItems().clear();
+                valueComboBox.getItems().addAll(fp.getPossibleParamValues(newValue));
+            }
+        });
+        //fp.loadAddresses(this);
     }
 
     public void loadAddresses(){
@@ -85,21 +134,57 @@ public class Routeplanner {
             System.out.println("FAIL");
             return;
         }
-        button.setDisable(true);
+        button.setVisible(false);
+        stopButton.setVisible(true);
         progresSlider.setVisible(true);
         progresSlider.setValue(0);
         adreslijst.getItems().clear();
 
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+        timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             Address addr = fp.nextAddress();
             adreslijst.getItems().add(addr);
-            Thread thread = new Thread(() -> addr.fetchCoords(api));
+            Thread thread = new Thread(() -> {addr.fetchCoords(api);adreslijst.refresh();});
             thread.start();
             progresSlider.adjustValue(fp.progress());
         }));
         timeline.setCycleCount(fp.getAddressAmount());
         timeline.play();
-        timeline.setOnFinished(event -> {button.setDisable(false);progresSlider.setVisible(false);});
+
+        timeline.setOnFinished(event -> {
+            button.setVisible(true);
+            stopButton.setVisible(false);
+            progresSlider.setVisible(false);
+        });
+    }
+
+    public void stopLoadingAddresses(){
+        if (timeline != null){
+            timeline.stop();
+            button.setVisible(true);
+            stopButton.setVisible(false);
+            progresSlider.setVisible(false);
+        }
+    }
+
+    public void fetchAddressCoords(){
+        if(addressQueryTextField.getText().isEmpty())
+           return;
+        changeDataAnchorPane.setDisable(true);
+        shownAddress.setAdresQuery(addressQueryTextField.getText());
+        Thread thread = new Thread(() -> {
+            shownAddress.fetchCoords(api);
+            adreslijst.refresh();
+            changeDataAnchorPane.setDisable(false);
+        });
+        thread.start();
+    }
+
+    public void setCoords(){
+        if(addressCoordTextField.getText().isEmpty())
+            return;
+        Double[] coords = Arrays.stream(addressCoordTextField.getText().replaceAll("\\s", "").split(",")).map(Double::parseDouble).toArray(Double[]::new);
+        shownAddress.setCoords(coords[0], coords[1]);
+        adreslijst.refresh();
     }
 
 

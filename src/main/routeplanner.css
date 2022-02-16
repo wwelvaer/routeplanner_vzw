@@ -6,3 +6,35 @@
     -fx-background-color: #838383;
 }
 
+#OK.list-cell, #SET.list-cell{
+    -fx-background-color: #22802b;
+    -fx-text-fill: black;
+}
+
+#dropdown.list-cell{
+    -fx-border-color: none;!important;
+}
+
+.list-cell:selected{
+    -fx-border-color: blue;
+    -fx-border-width: 2px;
+    -fx-border-radius: 5px;
+}
+
+#empty.list-cell{
+}
+
+#WARNING.list-cell{
+    /* background color set in code FIX*/
+    -fx-text-fill: black;
+}
+
+#NULL.list-cell{
+    -fx-background-color: white;
+}
+
+#ERROR.list-cell{
+    -fx-background-color: red;
+    -fx-text-fill: white;
+}
+

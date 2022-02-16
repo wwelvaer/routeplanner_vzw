@@ -2,13 +2,13 @@ package main;
 
 import com.byteowls.jopencage.model.JOpenCageLatLng;
 import com.byteowls.jopencage.model.JOpenCageResponse;
-import com.byteowls.jopencage.model.JOpenCageStatus;
 
 public class Address {
     private String adresQuery;
     private JOpenCageResponse adresResult;
+    private JOpenCageLatLng coords;
     public Order order;
-
+    private boolean fetchingData = false;
 
     public Address(Order order){
         this.order = order;
@@ -19,8 +19,14 @@ public class Address {
         return adresQuery;
     }
 
+    public void setAdresQuery(String adresQuery) {
+        this.adresQuery = adresQuery;
+    }
+
     public ResponseStatus getResponseStatus(){
-        return adresResult == null ? ResponseStatus.NULL : adresResult.getStatus().getCode() == 200 ? ResponseStatus.OK : ResponseStatus.ERROR;
+        return adresResult == null
+                ? coords == null ? ResponseStatus.NULL : ResponseStatus.SET
+                : adresResult.getStatus().getCode() == 200 ? ResponseStatus.OK : ResponseStatus.ERROR;
     }
 
     public String getFormattedAddress(){
@@ -36,19 +42,36 @@ public class Address {
     }
 
     public JOpenCageLatLng getCoords(){
-        return adresResult == null ? null : adresResult.getFirstPosition();
+        return coords;
+    }
+
+    public void setCoords(double lat, double lng){
+        adresResult = null;
+        coords = new JOpenCageLatLng();
+        coords.setLat(lat);
+        coords.setLng(lng);
     }
 
     public void fetchCoords(Api api){
+        if (fetchingData)
+            return;
+        fetchingData = true;
         adresResult = api.getCoord(adresQuery);
         adresResult.orderResultByConfidence();
+        coords = adresResult.getFirstPosition();
+        fetchingData = false;
+    }
+
+    public boolean isFetchingData() {
+        return fetchingData;
     }
 }
 
 enum ResponseStatus{
     ERROR,
     OK,
-    NULL
+    NULL,
+    SET
 }
 
 class Order {

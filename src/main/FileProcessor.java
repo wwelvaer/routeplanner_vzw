@@ -12,14 +12,18 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 public class FileProcessor {
 
     ArrayList<Address> addresses;
     int currIndex = -1;
+    NodeList orders;
 
-    public void processFile (String fileName, Routeplanner rp){
+    public void processFile (String fileName){
         currIndex = -1;
         addresses = new ArrayList<>();
         // process xml file
@@ -36,33 +40,59 @@ public class FileProcessor {
             doc.getDocumentElement().normalize();
 
             // get <order>
-            NodeList list = doc.getElementsByTagName("Order");
-            System.out.println("List length: " + list.getLength());
-            for (int i = 0; i < list.getLength(); i++) {
-                Node node = list.item(i);
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    Element element = (Element) node;
-                    Order order = new Order();
-                    order.orderNumber = element.getElementsByTagName("Order_Number").item(0).getTextContent();
-                    order.orderStatus = element.getElementsByTagName("Order_Status").item(0).getTextContent();
-                    order.orderDate = element.getElementsByTagName("Order_Date").item(0).getTextContent();
-                    order.customerNote = element.getElementsByTagName("Customer_Note").item(0).getTextContent();
-                    order.firstName = element.getElementsByTagName("Shipping_First_Name").item(0).getTextContent();
-                    order.lastName = element.getElementsByTagName("Shipping_Last_Name").item(0).getTextContent();
-                    order.address = element.getElementsByTagName("Shipping_Address").item(0).getTextContent();
-                    order.city = element.getElementsByTagName("Shipping_City").item(0).getTextContent();
-                    order.postcode = element.getElementsByTagName("Shipping_Postcode").item(0).getTextContent();
-                    order.email = element.getElementsByTagName("Billing_Email").item(0).getTextContent();
-                    order.phone = element.getElementsByTagName("Billing_Phone").item(0).getTextContent();
-                    order.shippingMethodTitle = element.getElementsByTagName("Shipping_Method_Title").item(0).getTextContent();
-                    //order.productQty = element.getElementsByTagName("Order_Number").item(0).getTextContent();
-                    addresses.add(new Address(order));
-                }
-            }
-            rp.loadAddresses();
+            orders = doc.getElementsByTagName("Order");
+            System.out.println("List length: " + orders.getLength());
         } catch (ParserConfigurationException | SAXException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String[] getOrderParams(){
+        if (orders == null)
+            return null;
+        int i = 0;
+        while(orders.item(i).getNodeType() != Node.ELEMENT_NODE)
+            i++;
+        NodeList l = orders.item(i).getChildNodes();
+        String[] s = new String[l.getLength()];
+        for(int j = 0; j < l.getLength(); j++)
+            s[j] = l.item(j).getNodeName();
+        return s;
+    }
+
+    public String[] getPossibleParamValues(String param){
+        Set<String> set = new HashSet<>();
+        for (int i = 0; i < orders.getLength(); i++) {
+            Node node = orders.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE)
+                set.add(((Element) node).getElementsByTagName(param).item(0).getTextContent());
+        }
+        return  set.toArray(String[]::new);
+    }
+
+    public void loadAddresses(Routeplanner rp){
+        for (int i = 0; i < orders.getLength(); i++) {
+            Node node = orders.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) node;
+                Order order = new Order();
+                order.orderNumber = element.getElementsByTagName("Order_Number").item(0).getTextContent();
+                order.orderStatus = element.getElementsByTagName("Order_Status").item(0).getTextContent();
+                order.orderDate = element.getElementsByTagName("Order_Date").item(0).getTextContent();
+                order.customerNote = element.getElementsByTagName("Customer_Note").item(0).getTextContent();
+                order.firstName = element.getElementsByTagName("Shipping_First_Name").item(0).getTextContent();
+                order.lastName = element.getElementsByTagName("Shipping_Last_Name").item(0).getTextContent();
+                order.address = element.getElementsByTagName("Shipping_Address").item(0).getTextContent();
+                order.city = element.getElementsByTagName("Shipping_City").item(0).getTextContent();
+                order.postcode = element.getElementsByTagName("Shipping_Postcode").item(0).getTextContent();
+                order.email = element.getElementsByTagName("Billing_Email").item(0).getTextContent();
+                order.phone = element.getElementsByTagName("Billing_Phone").item(0).getTextContent();
+                order.shippingMethodTitle = element.getElementsByTagName("Shipping_Method_Title").item(0).getTextContent();
+                //order.productQty = element.getElementsByTagName("Order_Number").item(0).getTextContent();
+                addresses.add(new Address(order));
+            }
+        }
+        rp.loadAddresses();
     }
 
     public Address nextAddress(){
