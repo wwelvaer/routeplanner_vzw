@@ -62,6 +62,7 @@ public class FileProcessor {
 
     public String[] getPossibleParamValues(String param){
         Set<String> set = new HashSet<>();
+        set.add("");
         for (int i = 0; i < orders.getLength(); i++) {
             Node node = orders.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE)
@@ -70,11 +71,14 @@ public class FileProcessor {
         return  set.toArray(String[]::new);
     }
 
-    public void loadAddresses(Routeplanner rp){
+    public ArrayList<Address> loadAddresses(Routeplanner rp, String param, String value){
+        addresses.clear();
         for (int i = 0; i < orders.getLength(); i++) {
             Node node = orders.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
                 Element element = (Element) node;
+                if (!param.isEmpty() && !element.getElementsByTagName(param).item(0).getTextContent().equals(value))
+                    continue;
                 Order order = new Order();
                 order.orderNumber = element.getElementsByTagName("Order_Number").item(0).getTextContent();
                 order.orderStatus = element.getElementsByTagName("Order_Status").item(0).getTextContent();
@@ -92,7 +96,7 @@ public class FileProcessor {
                 addresses.add(new Address(order));
             }
         }
-        rp.loadAddresses();
+        return addresses;
     }
 
     public Address nextAddress(){

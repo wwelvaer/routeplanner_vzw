@@ -8,25 +8,19 @@
 
 #OK.list-cell, #SET.list-cell{
     -fx-background-color: #22802b;
+}
+
+#dropdown > .list-cell{
+    -fx-border-width: 0px;
     -fx-text-fill: black;
 }
 
-#dropdown.list-cell{
-    -fx-border-color: none;!important;
-}
-
-.list-cell:selected{
-    -fx-border-color: blue;
-    -fx-border-width: 2px;
-    -fx-border-radius: 5px;
-}
-
 #empty.list-cell{
+
 }
 
 #WARNING.list-cell{
     /* background color set in code FIX*/
-    -fx-text-fill: black;
 }
 
 #NULL.list-cell{
@@ -38,3 +32,16 @@
     -fx-text-fill: white;
 }
 
+.list-cell:selected{
+    -fx-border-color: blue;
+    -fx-border-width: 2px;
+    -fx-border-radius: 5px;
+}
+
+#OK:selected,#WARNING:selected{
+    -fx-text-fill: white;
+}
+
+#NULL:selected{
+    -fx-text-fill: blue;
+}

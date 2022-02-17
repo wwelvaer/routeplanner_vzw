@@ -3,9 +3,6 @@ package main;
 import com.byteowls.jopencage.model.JOpenCageLatLng;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.text.Text;
@@ -19,6 +16,7 @@ public class Routeplanner {
     public Button button;
     public Button stopButton;
     public Slider progresSlider;
+    public Text resultsText;
 
     public ListView<Address> adreslijst;
 
@@ -27,6 +25,7 @@ public class Routeplanner {
     public TextField addressCoordTextField;
     public TextArea infoField;
 
+    public AnchorPane filterAnchorPane;
     public ComboBox<String> paramComboBox;
     public ComboBox<String> valueComboBox;
 
@@ -45,6 +44,7 @@ public class Routeplanner {
         valueComboBox.setId("dropdown");
 
         changeDataAnchorPane.setDisable(true);
+        filterAnchorPane.setVisible(false);
 
         // Set the CellFactory for the ListView
         adreslijst.setCellFactory(list -> new ListCell<>() {
@@ -105,10 +105,27 @@ public class Routeplanner {
                     }
                     if (!sameValue){
                         addressQueryTextField.setText(shownAddress.getAdresQuery());
-                        addressCoordTextField.setText(shownAddress.getCoords().toString());
+                        addressCoordTextField.setText(shownAddress.getCoords() == null ? "" : shownAddress.getCoords().toString());
                     }
                     infoField.setText(o);
                 }
+            }
+        });
+
+        paramComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if(newValue != null && !newValue.equals(oldValue)){
+                valueComboBox.getItems().clear();
+                valueComboBox.getItems().addAll(fp.getPossibleParamValues(newValue));
+            }
+        });
+
+        valueComboBox.valueProperty().addListener((obs, oldValue, newValue)-> {
+            if(newValue != null && !newValue.equals(oldValue)){
+                filterAnchorPane.setDisable(true);
+                adreslijst.getItems().clear();
+                adreslijst.getItems().addAll(fp.loadAddresses(this, paramComboBox.getValue(), valueComboBox.getValue()));
+                resultsText.setText("" + adreslijst.getItems().size() + " results");
+                filterAnchorPane.setDisable(false);
             }
         });
     }
@@ -120,16 +137,11 @@ public class Routeplanner {
         fp.processFile(inputTextField.getText());
         paramComboBox.getItems().clear();
         paramComboBox.getItems().addAll(fp.getOrderParams());
-        paramComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if(newValue != null && !newValue.equals(oldValue)){
-                valueComboBox.getItems().clear();
-                valueComboBox.getItems().addAll(fp.getPossibleParamValues(newValue));
-            }
-        });
-        //fp.loadAddresses(this);
+        filterAnchorPane.setVisible(true);
+
     }
 
-    public void loadAddresses(){
+    public void fetchAllCoords(){
         if (fp.getAddressAmount() == 0){
             System.out.println("FAIL");
             return;
@@ -138,12 +150,13 @@ public class Routeplanner {
         stopButton.setVisible(true);
         progresSlider.setVisible(true);
         progresSlider.setValue(0);
-        adreslijst.getItems().clear();
+        filterAnchorPane.setDisable(true);
 
         timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
-            Address addr = fp.nextAddress();
-            adreslijst.getItems().add(addr);
-            Thread thread = new Thread(() -> {addr.fetchCoords(api);adreslijst.refresh();});
+            Thread thread = new Thread(() -> {
+                fp.nextAddress().fetchCoords(api);
+                adreslijst.refresh();
+            });
             thread.start();
             progresSlider.adjustValue(fp.progress());
         }));
@@ -154,6 +167,7 @@ public class Routeplanner {
             button.setVisible(true);
             stopButton.setVisible(false);
             progresSlider.setVisible(false);
+            filterAnchorPane.setDisable(false);
         });
     }
 
@@ -163,6 +177,7 @@ public class Routeplanner {
             button.setVisible(true);
             stopButton.setVisible(false);
             progresSlider.setVisible(false);
+            filterAnchorPane.setDisable(false);
         }
     }
 
