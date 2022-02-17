@@ -92,7 +92,13 @@ public class FileProcessor {
                 order.email = element.getElementsByTagName("Billing_Email").item(0).getTextContent();
                 order.phone = element.getElementsByTagName("Billing_Phone").item(0).getTextContent();
                 order.shippingMethodTitle = element.getElementsByTagName("Shipping_Method_Title").item(0).getTextContent();
-                //order.productQty = element.getElementsByTagName("Order_Number").item(0).getTextContent();
+
+                NodeList products = element.getElementsByTagName("Products");
+                for(int j = 0; j < products.getLength(); j++) if(products.item(j).getNodeType() == Node.ELEMENT_NODE){
+                    Element el = (Element) products.item(j);
+                    Product p = new Product(Integer.parseInt(el.getElementsByTagName("Qty").item(0).getTextContent()), el.getElementsByTagName("Name").item(0).getTextContent());
+                    order.products.add(p);
+                }
                 addresses.add(new Address(order));
             }
         }

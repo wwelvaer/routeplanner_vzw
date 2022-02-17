@@ -3,6 +3,9 @@ package main;
 import com.byteowls.jopencage.model.JOpenCageLatLng;
 import com.byteowls.jopencage.model.JOpenCageResponse;
 
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+
 public class Address {
     private String adresQuery;
     private JOpenCageResponse adresResult;
@@ -73,6 +76,20 @@ enum ResponseStatus{
     NULL,
     SET
 }
+class Product {
+    public int quantity;
+    public String name;
+
+    public Product(int quantity, String name){
+        this.quantity = quantity;
+        this.name = name;
+    }
+
+    @Override
+    public String toString(){
+        return "" + quantity + "x " + name;
+    }
+}
 
 class Order {
     public String orderNumber;
@@ -90,9 +107,9 @@ class Order {
     public String phone;
 
     public String shippingMethodTitle;
-    public int productQty;
+    public ArrayList<Product> products = new ArrayList<>();
 
     public String dumpInfo(){
-        return orderNumber + "\n" + orderStatus + "\n" + orderDate + "\n" + customerNote + "\n" + firstName + "\n" + lastName + "\n" + address + "\n" + city + "\n" + postcode + "\n" + email + "\n" + phone + "\n" + shippingMethodTitle;
+        return orderNumber + "\n" + orderStatus + "\n" + orderDate + "\n" + customerNote + "\n" + firstName + "\n" + lastName + "\n" + address + "\n" + city + "\n" + postcode + "\n" + email + "\n" + phone + "\n" + shippingMethodTitle + "\n\nProducts:\n" + products.stream().map(Product::toString).collect(Collectors.joining("\n"));
     }
 }
